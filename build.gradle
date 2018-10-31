@@ -13,6 +13,9 @@ buildscript {
     }
 }
 
+
+ext['reactor-bom.version'] = 'Bismuth-SR13'
+
 apply plugin: 'kotlin'
 apply plugin: 'kotlin-spring'
 apply plugin: 'eclipse'
