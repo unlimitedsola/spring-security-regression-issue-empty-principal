@@ -3,16 +3,13 @@ package com.example;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.authentication.TestingAuthenticationToken;
-import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
-import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.context.SecurityContextServerWebExchangeWebFilter;
-import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.ServerWebExchangeDecorator;
 import org.springframework.web.server.WebFilter;
+import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
+import java.security.Principal;
 
 /**
  * @author Rob Winch
@@ -21,15 +18,37 @@ import org.springframework.web.server.WebFilter;
 public class SecurityConfig {
 
 	@Bean
-	SecurityContextServerWebExchangeWebFilter reactorContextWebFilter() {
-		return new SecurityContextServerWebExchangeWebFilter();
+	WebFilter reactorContextWebFilter() {
+		return (e,c) ->  {
+			Mono<Principal> principal = Mono.subscriberContext()
+					.filter(ctx -> ctx.hasKey(Principal.class))
+					.flatMap(ctx -> ctx.<Mono<Principal>>get(Principal.class));
+			return c.filter(new SecurityContextServerWebExchange(e, principal));
+		};
 	}
 
 	@Bean
 	@Order(0)
 	WebFilter simpleFilter() {
+		Principal p = () -> "the-username";
 		return (e,c) ->  c
 			.filter(e)
-			.subscriberContext(ReactiveSecurityContextHolder.withAuthentication(new TestingAuthenticationToken("the-username", "p", "USER")));
+			.subscriberContext(Context.of(Principal.class, Mono.just(p)));
+	}
+
+	static class SecurityContextServerWebExchange extends
+			ServerWebExchangeDecorator {
+		private final Mono<Principal> context;
+
+		public SecurityContextServerWebExchange(ServerWebExchange delegate, Mono<Principal> context) {
+			super(delegate);
+			this.context = context;
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public <T extends Principal> Mono<T> getPrincipal() {
+			return (Mono<T>) this.context;
+		}
 	}
 }
