@@ -30,7 +30,7 @@ class SecurityConfig {
     }
 
     fun simpleFilter() = AuthenticationWebFilter(NoopAuthenticationManager).apply {
-        setAuthenticationConverter(SimpleAuthenticationConverter)
+        setServerAuthenticationConverter(SimpleAuthenticationConverter)
     }
 
     object SimpleAuthenticationConverter : (ServerWebExchange) -> Mono<Authentication> {
